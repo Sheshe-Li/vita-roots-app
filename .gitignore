@@ -31,3 +31,4 @@ Thumbs.db
 # ── Phoenix local data ────────────────────────────────────────────────────────
 phoenix-data/
 backend/.env
+backend/.env
