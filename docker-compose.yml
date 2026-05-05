@@ -1,0 +1,108 @@
+networks:
+  wellness-net:
+    driver: bridge
+
+volumes:
+  phoenix-data:
+  langflow-data:
+
+services:
+  # ---------------------------------------------------------------------------
+  # Phoenix Arize — LLM observability UI and OTLP trace collector
+  # ---------------------------------------------------------------------------
+  phoenix:
+    image: arizephoenix/phoenix:latest
+    container_name: family-wellness-phoenix
+    restart: unless-stopped
+    ports:
+      - "6006:6006"   # Phoenix UI + OTLP HTTP receiver
+      - "4317:4317"   # OTLP gRPC (optional)
+    volumes:
+      - phoenix-data:/mnt/data
+    environment:
+      - PHOENIX_WORKING_DIR=/mnt/data
+    networks:
+      - wellness-net
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:6006/healthz"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+
+  # ---------------------------------------------------------------------------
+  # Langflow — visual AI workflow builder
+  # ---------------------------------------------------------------------------
+  langflow:
+    image: langflowai/langflow:latest
+    container_name: family-wellness-langflow
+    restart: unless-stopped
+    ports:
+      - "7860:7860"
+    volumes:
+      - langflow-data:/app/langflow
+      - ./langflow:/app/flows:ro   # auto-mount flow JSON files
+    environment:
+      - LANGFLOW_AUTO_LOGIN=true
+      - LANGFLOW_SUPERUSER=admin
+      - LANGFLOW_SUPERUSER_PASSWORD=wellness123
+      - LANGFLOW_SECRET_KEY=change-me-in-production
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+      - PHOENIX_COLLECTOR_ENDPOINT=${PHOENIX_COLLECTOR_ENDPOINT:-https://app.phoenix.arize.com/v1/traces}
+    depends_on: []
+    networks:
+      - wellness-net
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:7860/health"]
+      interval: 20s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+
+  # ---------------------------------------------------------------------------
+  # Backend — FastAPI + WellnessAgent
+  # ---------------------------------------------------------------------------
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: family-wellness-backend
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    env_file:
+      - ./backend/.env
+    environment:
+      - PHOENIX_COLLECTOR_ENDPOINT=${PHOENIX_COLLECTOR_ENDPOINT:-https://app.phoenix.arize.com/v1/traces}
+      - PHOENIX_PROJECT_NAME=${PHOENIX_PROJECT_NAME:-Capstone Demo}
+    depends_on: []
+    networks:
+      - wellness-net
+    volumes:
+      - ./backend:/app   # hot-reload in dev
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+
+  # ---------------------------------------------------------------------------
+  # Frontend — Next.js 14
+  # ---------------------------------------------------------------------------
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: family-wellness-frontend
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      - NEXT_PUBLIC_API_URL=http://localhost:8000
+      - NODE_ENV=production
+    depends_on: 
+      backend:
+        condition: service_healthy
+    networks:
+      - wellness-net

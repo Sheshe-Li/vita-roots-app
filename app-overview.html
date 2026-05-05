@@ -1,0 +1,818 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Family Wellness App — Current Overview</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      background: #f8faf8;
+      color: #1a2e1a;
+      line-height: 1.6;
+    }
+
+    /* ── Header ── */
+    header {
+      background: linear-gradient(135deg, #166534 0%, #15803d 50%, #22c55e 100%);
+      color: white;
+      padding: 48px 32px 40px;
+      text-align: center;
+    }
+    header .leaf { font-size: 48px; margin-bottom: 12px; }
+    header h1 { font-size: 2.4rem; font-weight: 700; letter-spacing: -0.5px; }
+    header p  { margin-top: 8px; opacity: .85; font-size: 1.05rem; }
+    .badge-stack {
+      display: flex; flex-wrap: wrap; gap: 8px;
+      justify-content: center; margin-top: 20px;
+    }
+    .tech-badge {
+      background: rgba(255,255,255,.18);
+      border: 1px solid rgba(255,255,255,.3);
+      border-radius: 999px;
+      padding: 4px 14px;
+      font-size: .8rem;
+      font-weight: 500;
+    }
+
+    /* ── Layout ── */
+    .container { max-width: 1100px; margin: 0 auto; padding: 0 24px; }
+
+    section { padding: 48px 0; }
+    section + section { border-top: 1px solid #e2ede2; }
+
+    h2 {
+      font-size: 1.5rem;
+      font-weight: 700;
+      color: #166534;
+      margin-bottom: 8px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .section-sub {
+      color: #4b6b4b;
+      margin-bottom: 28px;
+      font-size: .95rem;
+    }
+
+    /* ── Cards ── */
+    .card-grid {
+      display: grid;
+      gap: 16px;
+    }
+    .card-grid-2 { grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); }
+    .card-grid-3 { grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); }
+    .card-grid-4 { grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); }
+
+    .card {
+      background: white;
+      border: 1px solid #d1e7d1;
+      border-radius: 12px;
+      padding: 20px;
+      box-shadow: 0 1px 4px rgba(0,0,0,.05);
+    }
+    .card h3 {
+      font-size: 1rem;
+      font-weight: 600;
+      margin-bottom: 6px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .card p, .card ul {
+      font-size: .875rem;
+      color: #4b6b4b;
+    }
+    .card ul { padding-left: 18px; }
+    .card ul li { margin-bottom: 2px; }
+
+    .card.accent-green  { border-left: 4px solid #22c55e; }
+    .card.accent-yellow { border-left: 4px solid #f59e0b; }
+    .card.accent-blue   { border-left: 4px solid #3b82f6; }
+    .card.accent-purple { border-left: 4px solid #a855f7; }
+    .card.accent-red    { border-left: 4px solid #ef4444; }
+    .card.accent-teal   { border-left: 4px solid #14b8a6; }
+
+    /* ── Pages list ── */
+    .page-card {
+      background: white;
+      border: 1px solid #d1e7d1;
+      border-radius: 12px;
+      padding: 22px 24px;
+      margin-bottom: 14px;
+      display: grid;
+      grid-template-columns: 160px 1fr;
+      gap: 20px;
+      align-items: start;
+    }
+    .page-route {
+      font-family: monospace;
+      font-size: .9rem;
+      background: #f0fdf0;
+      border: 1px solid #bbf7d0;
+      border-radius: 6px;
+      padding: 6px 10px;
+      color: #166534;
+      font-weight: 600;
+      text-align: center;
+      align-self: start;
+    }
+    .page-title { font-weight: 600; margin-bottom: 4px; }
+    .page-desc  { font-size: .875rem; color: #4b6b4b; margin-bottom: 8px; }
+    .tag-list   { display: flex; flex-wrap: wrap; gap: 6px; }
+    .tag {
+      background: #f0fdf0;
+      color: #166534;
+      border: 1px solid #bbf7d0;
+      border-radius: 999px;
+      padding: 2px 10px;
+      font-size: .75rem;
+      font-weight: 500;
+    }
+    .tag.purple { background: #faf5ff; color: #7e22ce; border-color: #e9d5ff; }
+    .tag.blue   { background: #eff6ff; color: #1d4ed8; border-color: #bfdbfe; }
+    .tag.yellow { background: #fffbeb; color: #92400e; border-color: #fde68a; }
+
+    /* ── API table ── */
+    .api-section { margin-bottom: 28px; }
+    .api-section h3 {
+      font-size: 1rem;
+      font-weight: 600;
+      color: #166534;
+      margin-bottom: 10px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: .85rem;
+      background: white;
+      border-radius: 10px;
+      overflow: hidden;
+      border: 1px solid #d1e7d1;
+    }
+    th {
+      background: #f0fdf0;
+      padding: 10px 14px;
+      text-align: left;
+      font-weight: 600;
+      color: #166534;
+      border-bottom: 1px solid #d1e7d1;
+    }
+    td {
+      padding: 9px 14px;
+      border-bottom: 1px solid #f0f4f0;
+      vertical-align: top;
+    }
+    tr:last-child td { border-bottom: none; }
+    .method {
+      display: inline-block;
+      font-family: monospace;
+      font-size: .75rem;
+      font-weight: 700;
+      padding: 2px 7px;
+      border-radius: 4px;
+    }
+    .get    { background: #dbeafe; color: #1e40af; }
+    .post   { background: #dcfce7; color: #166534; }
+    .put    { background: #fef9c3; color: #854d0e; }
+    .patch  { background: #fce7f3; color: #9d174d; }
+    .delete { background: #fee2e2; color: #991b1b; }
+    .endpoint { font-family: monospace; font-size: .8rem; color: #374151; }
+
+    /* ── Model enums ── */
+    .enum-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+      gap: 14px;
+    }
+    .enum-box {
+      background: white;
+      border: 1px solid #d1e7d1;
+      border-radius: 10px;
+      padding: 16px;
+    }
+    .enum-box h4 {
+      font-size: .875rem;
+      font-weight: 600;
+      color: #166534;
+      margin-bottom: 8px;
+    }
+    .enum-values {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 5px;
+    }
+    .enum-val {
+      background: #f0fdf0;
+      border: 1px solid #bbf7d0;
+      border-radius: 4px;
+      padding: 2px 8px;
+      font-size: .72rem;
+      color: #166534;
+      font-family: monospace;
+    }
+
+    /* ── Architecture ── */
+    .arch-row {
+      display: grid;
+      grid-template-columns: 1fr 40px 1fr;
+      gap: 0;
+      align-items: center;
+      margin-bottom: 14px;
+    }
+    .arch-box {
+      background: white;
+      border: 1px solid #d1e7d1;
+      border-radius: 10px;
+      padding: 16px;
+    }
+    .arch-box h4 { font-weight: 600; margin-bottom: 4px; font-size: .9rem; }
+    .arch-box p  { font-size: .8rem; color: #4b6b4b; }
+    .arch-arrow {
+      text-align: center;
+      font-size: 1.3rem;
+      color: #22c55e;
+    }
+
+    /* ── Footer ── */
+    footer {
+      background: #166534;
+      color: rgba(255,255,255,.75);
+      text-align: center;
+      padding: 24px;
+      font-size: .85rem;
+    }
+    footer strong { color: white; }
+
+    /* ── Highlights ── */
+    .highlight-row {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+      gap: 14px;
+    }
+    .highlight-stat {
+      background: white;
+      border: 1px solid #d1e7d1;
+      border-radius: 12px;
+      padding: 18px;
+      text-align: center;
+    }
+    .highlight-stat .number {
+      font-size: 2rem;
+      font-weight: 700;
+      color: #22c55e;
+    }
+    .highlight-stat .label {
+      font-size: .8rem;
+      color: #4b6b4b;
+      margin-top: 2px;
+    }
+
+    @media (max-width: 640px) {
+      .page-card { grid-template-columns: 1fr; }
+      .arch-row  { grid-template-columns: 1fr; }
+      .arch-arrow { transform: rotate(90deg); }
+    }
+  </style>
+</head>
+<body>
+
+<!-- ══════════════════════════════════════════════════════
+     HEADER
+══════════════════════════════════════════════════════ -->
+<header>
+  <div class="leaf">🌿</div>
+  <h1>Family Wellness App</h1>
+  <p>AI-powered personalized meal planning, grocery tracking, and supplement guidance for the whole family.</p>
+  <div class="badge-stack">
+    <span class="tech-badge">Next.js 14</span>
+    <span class="tech-badge">FastAPI</span>
+    <span class="tech-badge">Claude Sonnet 4.6</span>
+    <span class="tech-badge">Tailwind CSS</span>
+    <span class="tech-badge">Supabase PostgreSQL</span>
+    <span class="tech-badge">Server-Sent Events</span>
+    <span class="tech-badge">Phoenix Arize Observability</span>
+    <span class="tech-badge">Docker</span>
+  </div>
+</header>
+
+<div class="container">
+
+<!-- ══════════════════════════════════════════════════════
+     AT A GLANCE
+══════════════════════════════════════════════════════ -->
+<section>
+  <h2>📊 At a Glance</h2>
+  <p class="section-sub">Key numbers that describe the scope of the current app.</p>
+  <div class="highlight-row">
+    <div class="highlight-stat">
+      <div class="number">4</div>
+      <div class="label">Frontend Pages</div>
+    </div>
+    <div class="highlight-stat">
+      <div class="number">5</div>
+      <div class="label">React Components</div>
+    </div>
+    <div class="highlight-stat">
+      <div class="number">4</div>
+      <div class="label">Backend Route Groups</div>
+    </div>
+    <div class="highlight-stat">
+      <div class="number">15+</div>
+      <div class="label">API Endpoints</div>
+    </div>
+    <div class="highlight-stat">
+      <div class="number">13</div>
+      <div class="label">Dietary Styles Supported</div>
+    </div>
+    <div class="highlight-stat">
+      <div class="number">5</div>
+      <div class="label">Wellness Philosophies</div>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════════════════════════════════════════════
+     PAGES / ROUTES
+══════════════════════════════════════════════════════ -->
+<section>
+  <h2>📄 Frontend Pages</h2>
+  <p class="section-sub">Four pages form the core user journey, from first visit through daily use.</p>
+
+  <div class="page-card">
+    <div class="page-route">/</div>
+    <div>
+      <div class="page-title">Landing Page</div>
+      <div class="page-desc">Hero section with value proposition, 4-step workflow demo, feature cards, and a clear call-to-action to begin onboarding.</div>
+      <div class="tag-list">
+        <span class="tag">Hero section</span>
+        <span class="tag">Feature cards</span>
+        <span class="tag">4-step demo flow</span>
+        <span class="tag">CTA → onboarding</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="page-card">
+    <div class="page-route">/onboarding</div>
+    <div>
+      <div class="page-title">Family Setup Wizard</div>
+      <div class="page-desc">Multi-step form that collects the family profile, then individual member profiles (repeated per member), then a required disclaimer acceptance before submitting.</div>
+      <div class="tag-list">
+        <span class="tag">Progress bar</span>
+        <span class="tag">Family name + budget</span>
+        <span class="tag">Per-member profiles</span>
+        <span class="tag purple">Ayurvedic dosha selector</span>
+        <span class="tag">Goals / allergies tags</span>
+        <span class="tag yellow">Supplement opt-in</span>
+        <span class="tag">Disclaimer acceptance</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="page-card">
+    <div class="page-route">/dashboard</div>
+    <div>
+      <div class="page-title">Main Dashboard (daily-use workspace)</div>
+      <div class="page-desc">Three-column layout: family member profiles on the left, a 7-day meal plan grid in the center, and grocery list + chat assistant on the right. Week navigation lets users browse past and future weeks.</div>
+      <div class="tag-list">
+        <span class="tag">3-column layout</span>
+        <span class="tag">Week navigation</span>
+        <span class="tag">Meal plan grid</span>
+        <span class="tag">Grocery checklist</span>
+        <span class="tag blue">Budget progress bar</span>
+        <span class="tag purple">Supplement panel</span>
+        <span class="tag">Floating chat widget</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="page-card">
+    <div class="page-route">/demo</div>
+    <div>
+      <div class="page-title">Investor Demo Page</div>
+      <div class="page-desc">Pre-loaded "Rivera family" data so investors can see the full experience without going through onboarding. Tabbed interface shows meals, grocery list, and supplements side-by-side with a live AI chat.</div>
+      <div class="tag-list">
+        <span class="tag yellow">Pre-seeded data</span>
+        <span class="tag">Tabs: meals / grocery / supplements</span>
+        <span class="tag blue">Live AI chat</span>
+        <span class="tag">No API calls for static content</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════════════════════════════════════════════
+     COMPONENTS
+══════════════════════════════════════════════════════ -->
+<section>
+  <h2>🧩 React Components</h2>
+  <p class="section-sub">Five reusable components power the dashboard and demo views.</p>
+  <div class="card-grid card-grid-2">
+
+    <div class="card accent-green">
+      <h3>💬 ChatAssistant</h3>
+      <p>Floating chat widget that streams AI responses via SSE. Supports member targeting, suggested prompts, and auto-scrolling conversation history.</p>
+    </div>
+
+    <div class="card accent-purple">
+      <h3>👤 FamilyMemberCard</h3>
+      <p>Profile card showing name, age, life stage emoji, wellness philosophy, dosha (if Ayurvedic), and personal goals.</p>
+    </div>
+
+    <div class="card accent-blue">
+      <h3>📅 MealPlanGrid</h3>
+      <p>7-column day grid with expandable MealCard sub-components. Each card shows timing, cuisine type, ingredient list, step-by-step instructions, and per-member "Why it works" explanations.</p>
+    </div>
+
+    <div class="card accent-yellow">
+      <h3>🛒 GroceryList</h3>
+      <p>Categorized (produce / protein / dairy / grains / pantry / frozen) shopping checklist. Includes quality flags, money-saving tips, member tags, and a live budget progress bar.</p>
+    </div>
+
+    <div class="card accent-teal">
+      <h3>💊 SupplementPanel</h3>
+      <p>Accordion per family member with expandable supplement recommendations — dosage, timing, approach (Ayurvedic / TCM / Western), contraindications, and brand suggestions. Only visible for members who opted in.</p>
+    </div>
+
+  </div>
+</section>
+
+<!-- ══════════════════════════════════════════════════════
+     BACKEND API
+══════════════════════════════════════════════════════ -->
+<section>
+  <h2>🔌 Backend API Endpoints</h2>
+  <p class="section-sub">FastAPI async backend with four route groups. All responses use an <code>APIResponse</code> wrapper with <code>data</code> and <code>message</code> fields.</p>
+
+  <!-- Family Management -->
+  <div class="api-section">
+    <h3>👨‍👩‍👧‍👦 Family Management</h3>
+    <table>
+      <thead><tr><th>Method</th><th>Endpoint</th><th>Description</th></tr></thead>
+      <tbody>
+        <tr><td><span class="method post">POST</span></td><td class="endpoint">/api/families</td><td>Create family with members</td></tr>
+        <tr><td><span class="method get">GET</span></td><td class="endpoint">/api/families</td><td>List all families</td></tr>
+        <tr><td><span class="method get">GET</span></td><td class="endpoint">/api/families/{family_id}</td><td>Retrieve single family</td></tr>
+        <tr><td><span class="method put">PUT</span></td><td class="endpoint">/api/families/{family_id}</td><td>Update family settings</td></tr>
+        <tr><td><span class="method delete">DELETE</span></td><td class="endpoint">/api/families/{family_id}</td><td>Delete family (cascade)</td></tr>
+        <tr><td><span class="method post">POST</span></td><td class="endpoint">/api/families/{id}/members</td><td>Add member to family</td></tr>
+        <tr><td><span class="method get">GET</span></td><td class="endpoint">/api/families/{id}/members</td><td>List family members</td></tr>
+        <tr><td><span class="method get">GET</span></td><td class="endpoint">/api/families/{id}/members/{mid}</td><td>Get individual member profile</td></tr>
+        <tr><td><span class="method put">PUT</span></td><td class="endpoint">/api/families/{id}/members/{mid}</td><td>Update member profile</td></tr>
+        <tr><td><span class="method delete">DELETE</span></td><td class="endpoint">/api/families/{id}/members/{mid}</td><td>Remove member</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Meal Planning -->
+  <div class="api-section">
+    <h3>🥗 Meal Planning</h3>
+    <table>
+      <thead><tr><th>Method</th><th>Endpoint</th><th>Description</th></tr></thead>
+      <tbody>
+        <tr><td><span class="method post">POST</span></td><td class="endpoint">/api/meal-plans/generate</td><td>AI-generate a 7-day personalized meal plan</td></tr>
+        <tr><td><span class="method get">GET</span></td><td class="endpoint">/api/meal-plans/{plan_id}</td><td>Retrieve a saved meal plan</td></tr>
+        <tr><td><span class="method post">POST</span></td><td class="endpoint">/api/meals/{meal_id}/swap</td><td>AI-swap a single meal with an alternative</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Grocery Lists -->
+  <div class="api-section">
+    <h3>🛒 Grocery Lists</h3>
+    <table>
+      <thead><tr><th>Method</th><th>Endpoint</th><th>Description</th></tr></thead>
+      <tbody>
+        <tr><td><span class="method post">POST</span></td><td class="endpoint">/api/grocery-lists/generate</td><td>AI-generate grocery list from a meal plan</td></tr>
+        <tr><td><span class="method get">GET</span></td><td class="endpoint">/api/grocery-lists/{plan_id}</td><td>Retrieve grocery list for a plan</td></tr>
+        <tr><td><span class="method patch">PATCH</span></td><td class="endpoint">/api/grocery-items/{item_id}/check</td><td>Toggle item checked/unchecked state</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Supplements -->
+  <div class="api-section">
+    <h3>💊 Supplement Guidance</h3>
+    <table>
+      <thead><tr><th>Method</th><th>Endpoint</th><th>Description</th></tr></thead>
+      <tbody>
+        <tr><td><span class="method post">POST</span></td><td class="endpoint">/api/supplements/generate/{member_id}</td><td>Generate personalized supplement guide for a member</td></tr>
+        <tr><td><span class="method get">GET</span></td><td class="endpoint">/api/supplements/{member_id}</td><td>Retrieve saved supplement guide</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Chat -->
+  <div class="api-section">
+    <h3>💬 Chat</h3>
+    <table>
+      <thead><tr><th>Method</th><th>Endpoint</th><th>Description</th></tr></thead>
+      <tbody>
+        <tr><td><span class="method post">POST</span></td><td class="endpoint">/api/chat</td><td>Stream wellness assistant response via SSE. Accepts family context, conversation history, and optional member targeting.</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<!-- ══════════════════════════════════════════════════════
+     DATA MODELS
+══════════════════════════════════════════════════════ -->
+<section>
+  <h2>🗂️ Data Models</h2>
+  <p class="section-sub">Strict Pydantic models with enumerations for every profile dimension.</p>
+
+  <div class="enum-grid" style="margin-bottom: 24px;">
+    <div class="enum-box">
+      <h4>LifeStage</h4>
+      <div class="enum-values">
+        <span class="enum-val">infant</span><span class="enum-val">child</span><span class="enum-val">teen</span>
+        <span class="enum-val">adult</span><span class="enum-val">elderly</span><span class="enum-val">pregnant</span>
+        <span class="enum-val">postpartum</span>
+      </div>
+    </div>
+    <div class="enum-box">
+      <h4>DietaryStyle (13 options)</h4>
+      <div class="enum-values">
+        <span class="enum-val">omnivore</span><span class="enum-val">vegan</span><span class="enum-val">vegetarian</span>
+        <span class="enum-val">pescatarian</span><span class="enum-val">keto</span><span class="enum-val">paleo</span>
+        <span class="enum-val">gluten_free</span><span class="enum-val">dairy_free</span><span class="enum-val">halal</span>
+        <span class="enum-val">kosher</span><span class="enum-val">raw</span><span class="enum-val">whole_food_plant_based</span>
+      </div>
+    </div>
+    <div class="enum-box">
+      <h4>WellnessPhilosophy</h4>
+      <div class="enum-values">
+        <span class="enum-val">ayurvedic</span><span class="enum-val">tcm</span><span class="enum-val">western_integrative</span>
+        <span class="enum-val">blend</span><span class="enum-val">no_preference</span>
+      </div>
+    </div>
+    <div class="enum-box">
+      <h4>DoshaType (Ayurvedic)</h4>
+      <div class="enum-values">
+        <span class="enum-val">vata</span><span class="enum-val">pitta</span><span class="enum-val">kapha</span>
+        <span class="enum-val">vata_pitta</span><span class="enum-val">pitta_kapha</span><span class="enum-val">vata_kapha</span>
+        <span class="enum-val">tridoshic</span><span class="enum-val">unknown</span>
+      </div>
+    </div>
+    <div class="enum-box">
+      <h4>ActivityLevel</h4>
+      <div class="enum-values">
+        <span class="enum-val">sedentary</span><span class="enum-val">lightly_active</span><span class="enum-val">moderately_active</span>
+        <span class="enum-val">very_active</span><span class="enum-val">extra_active</span>
+      </div>
+    </div>
+    <div class="enum-box">
+      <h4>QualityPreference</h4>
+      <div class="enum-values">
+        <span class="enum-val">organic</span><span class="enum-val">conventional</span><span class="enum-val">local</span>
+        <span class="enum-val">whole_foods</span><span class="enum-val">minimally_processed</span><span class="enum-val">budget_friendly</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="card-grid card-grid-3">
+    <div class="card accent-green">
+      <h3>👤 FamilyMember</h3>
+      <ul>
+        <li>name, age (0–120), sex</li>
+        <li>life_stage, activity_level</li>
+        <li>dietary_style, wellness_philosophy</li>
+        <li>dosha_type (Ayurvedic)</li>
+        <li>goals, allergies, dislikes, loves</li>
+        <li>cuisine_prefs, health_conditions</li>
+        <li>supplements_open (bool)</li>
+        <li>current_supplements list</li>
+      </ul>
+    </div>
+    <div class="card accent-blue">
+      <h3>🏠 Family</h3>
+      <ul>
+        <li>name, members array</li>
+        <li>budget_weekly</li>
+        <li>quality_preference</li>
+        <li>plan_frequency (weekly / biweekly / monthly)</li>
+      </ul>
+    </div>
+    <div class="card accent-yellow">
+      <h3>🍽️ Meal</h3>
+      <ul>
+        <li>name, cuisine_type, tags</li>
+        <li>ingredients (qty + unit)</li>
+        <li>step-by-step instructions</li>
+        <li>prep_time, cook_time</li>
+        <li>why_it_works (per member)</li>
+        <li>member_compatibility array</li>
+      </ul>
+    </div>
+    <div class="card accent-purple">
+      <h3>📅 MealPlan</h3>
+      <ul>
+        <li>family_id, week_start (ISO)</li>
+        <li>days array (7 × DayMeals)</li>
+        <li>breakfast / lunch / dinner / snacks per day</li>
+        <li>notes, created_at</li>
+      </ul>
+    </div>
+    <div class="card accent-teal">
+      <h3>🛒 GroceryList</h3>
+      <ul>
+        <li>items (GroceryItem[])</li>
+        <li>category, estimated_cost, quality_flag</li>
+        <li>member_tags, money_saving_tip</li>
+        <li>checked (bool), total_estimated_cost</li>
+        <li>budget_weekly comparison</li>
+      </ul>
+    </div>
+    <div class="card accent-red">
+      <h3>💊 SupplementGuide</h3>
+      <ul>
+        <li>member_id, member_name</li>
+        <li>recommendations[]</li>
+        <li>name, purpose, form</li>
+        <li>dose_range, timing</li>
+        <li>approach (Ayurvedic/TCM/Western)</li>
+        <li>contraindication_notes</li>
+        <li>brand_suggestions, disclaimer</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════════════════════════════════════════════
+     KEY FEATURES
+══════════════════════════════════════════════════════ -->
+<section>
+  <h2>✨ Key Features</h2>
+  <p class="section-sub">What the app actually does for families today.</p>
+  <div class="card-grid card-grid-2">
+
+    <div class="card accent-green">
+      <h3>🧙 Personalized Onboarding</h3>
+      <p>Multi-step wizard capturing 15+ data points per member — demographics, dietary style, wellness philosophy, goals, allergies, cuisine preferences, health conditions, and supplement opt-in. Ayurvedic philosophy unlocks a dosha selector. Requires disclaimer acceptance before submission.</p>
+    </div>
+
+    <div class="card accent-blue">
+      <h3>📅 AI Meal Planning (7-day)</h3>
+      <p>Claude Sonnet generates a full week of meals (breakfast, lunch, dinner, snacks) personalized for every family member simultaneously. Each meal includes per-member "Why it works" explanations. Users can regenerate the whole plan or swap individual meals.</p>
+    </div>
+
+    <div class="card accent-yellow">
+      <h3>🛒 Smart Grocery Lists</h3>
+      <p>Automatically synthesized from the meal plan. AI consolidates ingredients across all 7 days, assigns categories (produce / protein / dairy / grains / pantry / frozen), adds quality flags (organic/local), member tags, and money-saving tips. Live budget bar turns red if over budget.</p>
+    </div>
+
+    <div class="card accent-purple">
+      <h3>💊 Supplement Guidance</h3>
+      <p>Per-member personalized recommendations respecting their wellness philosophy — Ayurvedic herbs, TCM tonics, or Western nutraceuticals. Each supplement includes dosage, timing, form, contraindications, and brand suggestions. Opt-in only.</p>
+    </div>
+
+    <div class="card accent-teal">
+      <h3>💬 Streaming Chat Assistant</h3>
+      <p>Floating chat widget with real-time SSE streaming. Context-aware: knows the family profile and can target specific members. Suggested prompts help new users get started. Full conversation history passed to Claude on each turn.</p>
+    </div>
+
+    <div class="card accent-red">
+      <h3>🎯 Investor Demo Mode</h3>
+      <p>Pre-loaded Rivera family with all features visible (meals, grocery, supplements, live chat) without requiring onboarding. Designed for product demos and investor presentations.</p>
+    </div>
+
+  </div>
+</section>
+
+<!-- ══════════════════════════════════════════════════════
+     ARCHITECTURE
+══════════════════════════════════════════════════════ -->
+<section>
+  <h2>🏗️ Architecture Overview</h2>
+  <p class="section-sub">How the pieces connect.</p>
+
+  <div class="arch-row">
+    <div class="arch-box">
+      <h4>🖥️ Next.js 14 Frontend</h4>
+      <p>TypeScript, Tailwind CSS, Lucide icons. Client-side state via React hooks. SSE streaming for chat. Responsive grid layouts.</p>
+    </div>
+    <div class="arch-arrow">⇄</div>
+    <div class="arch-box">
+      <h4>⚡ FastAPI Backend</h4>
+      <p>Async/await throughout. Pydantic models for validation. <code>/api/chat</code> proxied through Next.js API route for SSE support.</p>
+    </div>
+  </div>
+
+  <div class="arch-row">
+    <div class="arch-box">
+      <h4>🤖 WellnessAgent (Claude Sonnet 4.6)</h4>
+      <p>Core AI engine with prompt caching. Generates meal plans, grocery lists, supplement guides, and chat responses. Tool-use for structured output.</p>
+    </div>
+    <div class="arch-arrow">⇄</div>
+    <div class="arch-box">
+      <h4>🗄️ Supabase PostgreSQL</h4>
+      <p>asyncpg driver. Families stored as single data blobs + members indexed separately for quick lookups. Cascade deletes.</p>
+    </div>
+  </div>
+
+  <div class="arch-row">
+    <div class="arch-box">
+      <h4>🔭 Phoenix Arize Observability</h4>
+      <p>OpenInference tracing on every request. Custom span attributes: <code>family.id</code>, <code>family.member_id</code>, <code>wellness.request_type</code>, <code>llm.model</code>.</p>
+    </div>
+    <div class="arch-arrow">⇄</div>
+    <div class="arch-box">
+      <h4>🐳 Docker Compose</h4>
+      <p>Containerized frontend, backend, and observability stack. <code>start.sh</code> / <code>stop.sh</code> for convenience. Langflow container for visual agent editing.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════════════════════════════════════════════
+     DESIGN SYSTEM
+══════════════════════════════════════════════════════ -->
+<section>
+  <h2>🎨 Design System</h2>
+  <p class="section-sub">Tailwind CSS with custom tokens and reusable component classes.</p>
+
+  <div class="card-grid card-grid-3">
+
+    <div class="card">
+      <h3>🎨 Colors</h3>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px;">
+        <span style="display:flex;align-items:center;gap:6px;font-size:.8rem;">
+          <span style="width:18px;height:18px;border-radius:4px;background:#22c55e;display:inline-block;"></span>Brand green
+        </span>
+        <span style="display:flex;align-items:center;gap:6px;font-size:.8rem;">
+          <span style="width:18px;height:18px;border-radius:4px;background:#f59e0b;display:inline-block;"></span>Warm yellow
+        </span>
+        <span style="display:flex;align-items:center;gap:6px;font-size:.8rem;">
+          <span style="width:18px;height:18px;border-radius:4px;background:#a855f7;display:inline-block;"></span>Purple
+        </span>
+        <span style="display:flex;align-items:center;gap:6px;font-size:.8rem;">
+          <span style="width:18px;height:18px;border-radius:4px;background:#3b82f6;display:inline-block;"></span>Blue
+        </span>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3>🔤 Typography</h3>
+      <ul>
+        <li>Inter — body / UI text</li>
+        <li>Playfair Display — display headings</li>
+        <li>Monospace — code / routes</li>
+      </ul>
+    </div>
+
+    <div class="card">
+      <h3>✨ Animations</h3>
+      <ul>
+        <li>fade-in (0.3s ease)</li>
+        <li>slide-up (0.3s ease)</li>
+        <li>pulse-gentle (2s loop)</li>
+        <li>loading-dots (skeleton states)</li>
+      </ul>
+    </div>
+
+    <div class="card">
+      <h3>🔲 Button Variants</h3>
+      <ul>
+        <li><code>.btn-primary</code> — green fill</li>
+        <li><code>.btn-secondary</code> — outlined</li>
+        <li><code>.btn-ghost</code> — transparent</li>
+      </ul>
+    </div>
+
+    <div class="card">
+      <h3>🏷️ Badge Variants</h3>
+      <ul>
+        <li><code>.badge-green</code></li>
+        <li><code>.badge-purple</code></li>
+        <li><code>.badge-blue</code></li>
+        <li><code>.badge-yellow</code></li>
+      </ul>
+    </div>
+
+    <div class="card">
+      <h3>📦 UI Libraries</h3>
+      <ul>
+        <li>Lucide React (400+ icons)</li>
+        <li>clsx — conditional classes</li>
+        <li>tailwind-merge — smart merging</li>
+      </ul>
+    </div>
+
+  </div>
+</section>
+
+</div><!-- /container -->
+
+<footer>
+  <strong>Family Wellness App</strong> — Current State Overview &nbsp;·&nbsp; Generated 2026-05-04 &nbsp;·&nbsp;
+  Next.js 14 · FastAPI · Claude Sonnet 4.6 · Supabase · Docker
+</footer>
+
+</body>
+</html>
