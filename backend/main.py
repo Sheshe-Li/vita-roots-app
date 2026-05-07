@@ -41,11 +41,10 @@ logger = logging.getLogger(__name__)
 async def lifespan(app: FastAPI):
     """Manage startup and shutdown lifecycle."""
     logger.info("Starting Family Wellness API...")
-    # Initialize DB pool
     try:
-        pool = await database.get_pool()
-        if pool:
-            logger.info("Database pool ready.")
+        client = database.get_client()
+        if client:
+            logger.info("Supabase client ready.")
         else:
             logger.warning("Database unavailable — running in memory-only mode.")
     except Exception as exc:
@@ -55,7 +54,6 @@ async def lifespan(app: FastAPI):
 
     # Shutdown
     logger.info("Shutting down...")
-    await database.close_pool()
     shutdown_observability()
 
 
