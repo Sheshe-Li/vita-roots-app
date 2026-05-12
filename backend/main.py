@@ -30,6 +30,10 @@ import database
 from models import HealthCheck
 from routes import chat, meal_plans, grocery, supplements, family
 
+from routes.approvals import router as approvals_router
+
+from routes.support import router as support_router
+
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
@@ -91,7 +95,7 @@ app.include_router(meal_plans.router, prefix="/api", tags=["Meal Plans"])
 app.include_router(grocery.router, prefix="/api", tags=["Grocery"])
 app.include_router(supplements.router, prefix="/api", tags=["Supplements"])
 app.include_router(family.router, prefix="/api", tags=["Family"])
-from routes.approvals import router as approvals_router
+app.include_router(support_router, prefix="/api", tags=["Support"])
 app.include_router(approvals_router, prefix="/api")
 
 
