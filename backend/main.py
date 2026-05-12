@@ -91,6 +91,8 @@ app.include_router(meal_plans.router, prefix="/api", tags=["Meal Plans"])
 app.include_router(grocery.router, prefix="/api", tags=["Grocery"])
 app.include_router(supplements.router, prefix="/api", tags=["Supplements"])
 app.include_router(family.router, prefix="/api", tags=["Family"])
+from routes.approvals import router as approvals_router
+app.include_router(approvals_router, prefix="/api")
 
 
 # ---------------------------------------------------------------------------
