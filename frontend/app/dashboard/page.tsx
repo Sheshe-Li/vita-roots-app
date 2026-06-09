@@ -1,16 +1,19 @@
 "use client";
 
-import { useState, useEffect, Suspense } from "react";
-import { useSearchParams } from "next/navigation";
+import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import {
-  ChevronLeft,
-  ChevronRight,
-  RefreshCw,
-  Calendar,
-  Sparkles,
-  AlertCircle,
-  Loader2,
+  ChevronLeft, ChevronRight, RefreshCw, Calendar,
+  Sparkles, AlertCircle, Loader2, LogOut, Menu, X,
 } from "lucide-react";
+import Link from "next/link";
+import { createClient } from "@/lib/supabase";
+import MealPlanGrid from "@/components/MealPlanGrid";
+import GroceryList from "@/components/GroceryList";
+import ChatAssistant from "@/components/ChatAssistant";
+import FamilyMemberCard from "@/components/FamilyMemberCard";
+
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
 function VitaRootsLogo({ size = 24 }: { size?: number }) {
   return (
@@ -34,13 +37,6 @@ function VitaRootsLogo({ size = 24 }: { size?: number }) {
     </svg>
   );
 }
-import Link from "next/link";
-import MealPlanGrid from "@/components/MealPlanGrid";
-import GroceryList from "@/components/GroceryList";
-import ChatAssistant from "@/components/ChatAssistant";
-import FamilyMemberCard from "@/components/FamilyMemberCard";
-
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
 interface FamilyMember {
   id: string;
@@ -59,6 +55,7 @@ interface Family {
   members: FamilyMember[];
   budget_weekly: number;
   quality_preference: string;
+  client_number?: string;
 }
 
 interface MealPlan {
@@ -66,7 +63,6 @@ interface MealPlan {
   family_id: string;
   week_start: string;
   days: DayMeals[];
-  notes?: string;
 }
 
 interface DayMeals {
@@ -112,7 +108,7 @@ interface GroceryItem {
 function getWeekStart(offsetWeeks = 0): string {
   const d = new Date();
   const day = d.getDay();
-  const diff = d.getDate() - day + (day === 0 ? -6 : 1); // Monday
+  const diff = d.getDate() - day + (day === 0 ? -6 : 1);
   d.setDate(diff + offsetWeeks * 7);
   return d.toISOString().split("T")[0];
 }
@@ -121,12 +117,12 @@ function formatWeekRange(startDate: string): string {
   const start = new Date(startDate);
   const end = new Date(startDate);
   end.setDate(end.getDate() + 6);
-  return `${start.toLocaleDateString("en-US", { month: "short", day: "numeric" })} – ${end.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}`;
+  return `${start.toLocaleDateString("en-US", { month: "short", day: "numeric" })} – ${end.toLocaleDateString("en-US", { month: "short", day: "numeric" })}`;
 }
 
-function DashboardContent() {
-  const searchParams = useSearchParams();
-  const familyId = searchParams.get("family_id") || "";
+export default function DashboardPage() {
+  const router = useRouter();
+  const supabase = createClient();
 
   const [family, setFamily] = useState<Family | null>(null);
   const [selectedMemberId, setSelectedMemberId] = useState<string | null>(null);
@@ -136,42 +132,62 @@ function DashboardContent() {
   const [isGeneratingPlan, setIsGeneratingPlan] = useState(false);
   const [isGeneratingGrocery, setIsGeneratingGrocery] = useState(false);
   const [error, setError] = useState("");
-  const [loadingFamily, setLoadingFamily] = useState(true);
+  const [loading, setLoading] = useState(true);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   const weekStart = getWeekStart(weekOffset);
 
-  // Load family profile
+  // Load family from auth session
   useEffect(() => {
-    if (!familyId) {
-      setLoadingFamily(false);
-      return;
-    }
-    fetch(`${API_URL}/api/families/${familyId}`)
-      .then((r) => r.json())
-      .then((data) => {
+    async function load() {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        router.push("/login");
+        return;
+      }
+
+      try {
+        const res = await fetch(`${API_URL}/api/families/me`, {
+          headers: { Authorization: `Bearer ${session.access_token}` },
+        });
+        if (!res.ok) throw new Error("Could not load family");
+        const data = await res.json();
         setFamily(data.data);
         if (data.data?.members?.[0]) {
           setSelectedMemberId(data.data.members[0].id);
         }
-      })
-      .catch(() => setError("Failed to load family profile."))
-      .finally(() => setLoadingFamily(false));
-  }, [familyId]);
+      } catch {
+        setError("Could not load your family profile. Please contact support.");
+      } finally {
+        setLoading(false);
+      }
+    }
+    load();
+  }, []);
+
+  const handleSignOut = async () => {
+    await supabase.auth.signOut();
+    router.push("/login");
+  };
 
   const handleGeneratePlan = async () => {
-    if (!familyId) return;
+    if (!family) return;
     setIsGeneratingPlan(true);
     setError("");
     try {
+      const { data: { session } } = await supabase.auth.getSession();
       const res = await fetch(`${API_URL}/api/meal-plans/generate`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ family_id: familyId, week_start: weekStart }),
+        headers: {
+          "Content-Type": "application/json",
+          ...(session ? { Authorization: `Bearer ${session.access_token}` } : {}),
+        },
+        body: JSON.stringify({ family_id: family.id, week_start: weekStart }),
       });
       if (!res.ok) throw new Error("Failed to generate meal plan.");
       const data = await res.json();
       setMealPlan(data.data);
-      setGroceryList(null); // Reset grocery list when plan changes
+      setGroceryList(null);
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Error generating plan.");
     } finally {
@@ -188,7 +204,7 @@ function DashboardContent() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          family_id: familyId,
+          family_id: family.id,
           meal_plan_id: mealPlan.id,
           budget: family.budget_weekly,
           quality_prefs: [family.quality_preference],
@@ -206,16 +222,8 @@ function DashboardContent() {
 
   const handleToggleItem = async (itemId: string, checked: boolean) => {
     if (!groceryList) return;
-    // Optimistic update
     setGroceryList((prev) =>
-      prev
-        ? {
-            ...prev,
-            items: prev.items.map((i) =>
-              i.id === itemId ? { ...i, checked } : i
-            ),
-          }
-        : prev
+      prev ? { ...prev, items: prev.items.map((i) => i.id === itemId ? { ...i, checked } : i) } : prev
     );
     await fetch(`${API_URL}/api/grocery-items/${itemId}/check`, {
       method: "PATCH",
@@ -224,85 +232,83 @@ function DashboardContent() {
     }).catch(console.error);
   };
 
-  if (loadingFamily) {
+  if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <Loader2 className="w-8 h-8 text-brand-500 animate-spin" />
-      </div>
-    );
-  }
-
-  if (!familyId) {
-    return (
-      <div className="min-h-screen flex flex-col items-center justify-center gap-4 text-center px-6">
-        <div className="w-16 h-16 rounded-2xl flex items-center justify-center" style={{ background: "rgba(62,107,74,0.1)" }}>
-          <VitaRootsLogo size={36} />
-        </div>
-        <h2 className="text-2xl font-bold text-stone-900">No family profile found</h2>
-        <p className="text-stone-500 max-w-sm">
-          Start by creating your family's wellness profile to generate personalized plans.
-        </p>
-        <Link href="/onboarding" className="btn-primary">
-          Create Family Profile
-        </Link>
+      <div className="min-h-screen flex items-center justify-center bg-stone-50">
+        <Loader2 className="w-8 h-8 text-green-700 animate-spin" />
       </div>
     );
   }
 
   return (
     <div className="min-h-screen bg-stone-50 flex flex-col">
-      {/* Top Navigation */}
+      {/* Header */}
       <header className="bg-white border-b border-stone-100 sticky top-0 z-40">
-        <div className="max-w-screen-xl mx-auto px-6 py-3 flex items-center justify-between">
-          <div className="flex items-center gap-2.5">
-            <VitaRootsLogo size={24} />
-            <span style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: "18px", fontWeight: 700, color: "#1E1208" }}>
+        <div className="px-4 sm:px-6 py-3 flex items-center gap-3">
+          {/* Mobile menu toggle */}
+          <button
+            className="sm:hidden p-1.5 rounded-lg text-stone-600 hover:bg-stone-100"
+            onClick={() => setSidebarOpen(!sidebarOpen)}
+          >
+            {sidebarOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+          </button>
+
+          {/* Logo */}
+          <div className="flex items-center gap-2 flex-1">
+            <VitaRootsLogo size={22} />
+            <span
+              className="text-base font-bold hidden xs:block"
+              style={{ fontFamily: "'Cormorant Garamond', serif", color: "#1E1208" }}
+            >
               Vita<span style={{ color: "#3E6B4A" }}>Roots</span>
             </span>
+            {family?.client_number && (
+              <span className="ml-2 text-xs text-stone-400 hidden sm:block">{family.client_number}</span>
+            )}
           </div>
 
-          {/* Week selector */}
-          <div className="flex items-center gap-3 bg-stone-100 px-4 py-2 rounded-xl">
-            <button
-              onClick={() => setWeekOffset((w) => w - 1)}
-              className="text-stone-600 hover:text-stone-900 transition-colors"
-            >
+          {/* Week selector — hidden on mobile, shown inline on sm+ */}
+          <div className="hidden sm:flex items-center gap-2 bg-stone-100 px-3 py-1.5 rounded-xl text-sm font-medium text-stone-700">
+            <button onClick={() => setWeekOffset((w) => w - 1)} className="text-stone-500 hover:text-stone-900">
               <ChevronLeft className="w-4 h-4" />
             </button>
-            <div className="flex items-center gap-2 text-sm font-medium text-stone-700">
-              <Calendar className="w-4 h-4 text-brand-500" />
-              {formatWeekRange(weekStart)}
-            </div>
-            <button
-              onClick={() => setWeekOffset((w) => w + 1)}
-              className="text-stone-600 hover:text-stone-900 transition-colors"
-            >
+            <Calendar className="w-3.5 h-3.5 text-green-700" />
+            <span className="text-xs">{formatWeekRange(weekStart)}</span>
+            <button onClick={() => setWeekOffset((w) => w + 1)} className="text-stone-500 hover:text-stone-900">
               <ChevronRight className="w-4 h-4" />
             </button>
           </div>
 
+          {/* Generate + sign out */}
           <button
             onClick={handleGeneratePlan}
             disabled={isGeneratingPlan}
-            className="btn-primary py-2.5 text-sm"
+            className="flex items-center gap-1.5 bg-green-700 hover:bg-green-800 disabled:opacity-60 text-white text-xs font-semibold px-3 py-2 rounded-xl transition"
           >
-            {isGeneratingPlan ? (
-              <>
-                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                Generating...
-              </>
-            ) : (
-              <>
-                <Sparkles className="w-4 h-4 mr-2" />
-                Generate Plan
-              </>
-            )}
+            {isGeneratingPlan ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5" />}
+            <span className="hidden sm:inline">Generate Plan</span>
+            <span className="sm:hidden">Plan</span>
           </button>
+
+          <button
+            onClick={handleSignOut}
+            className="p-2 rounded-xl text-stone-400 hover:text-stone-700 hover:bg-stone-100 transition"
+            title="Sign out"
+          >
+            <LogOut className="w-4 h-4" />
+          </button>
+        </div>
+
+        {/* Mobile week bar */}
+        <div className="sm:hidden flex items-center justify-center gap-3 px-4 pb-2.5 text-sm text-stone-600">
+          <button onClick={() => setWeekOffset((w) => w - 1)}><ChevronLeft className="w-4 h-4" /></button>
+          <span className="text-xs font-medium">{formatWeekRange(weekStart)}</span>
+          <button onClick={() => setWeekOffset((w) => w + 1)}><ChevronRight className="w-4 h-4" /></button>
         </div>
       </header>
 
       {error && (
-        <div className="max-w-screen-xl mx-auto w-full px-6 pt-4">
+        <div className="mx-4 sm:mx-6 mt-4">
           <div className="flex items-center gap-2 p-3 bg-red-50 border border-red-200 rounded-xl text-sm text-red-700">
             <AlertCircle className="w-4 h-4 flex-shrink-0" />
             {error}
@@ -310,42 +316,55 @@ function DashboardContent() {
         </div>
       )}
 
-      <div className="flex-1 max-w-screen-xl mx-auto w-full px-6 py-6 flex gap-6">
-        {/* Left sidebar — family members */}
-        <aside className="w-56 flex-shrink-0 space-y-3">
-          <h3 className="text-xs font-semibold text-stone-400 uppercase tracking-wider mb-3">
+      {/* Body layout: sidebar + main + grocery */}
+      <div className="flex flex-1 overflow-hidden">
+        {/* Sidebar — slide-over on mobile, static on sm+ */}
+        <aside
+          className={`
+            fixed inset-y-0 left-0 z-30 w-64 bg-white border-r border-stone-100 pt-20 px-4 pb-6 overflow-y-auto
+            transform transition-transform duration-200
+            sm:static sm:transform-none sm:w-56 sm:pt-6 sm:z-auto sm:block
+            ${sidebarOpen ? "translate-x-0 shadow-xl" : "-translate-x-full sm:translate-x-0"}
+          `}
+        >
+          {/* Overlay close on mobile */}
+          {sidebarOpen && (
+            <div
+              className="fixed inset-0 z-20 bg-black/20 sm:hidden"
+              onClick={() => setSidebarOpen(false)}
+            />
+          )}
+
+          <h3 className="text-xs font-semibold text-stone-400 uppercase tracking-wider mb-3 relative z-10">
             Family Members
           </h3>
-          {family?.members.map((member) => (
-            <FamilyMemberCard
-              key={member.id}
-              member={member}
-              isSelected={selectedMemberId === member.id}
-              onSelect={() => setSelectedMemberId(member.id)}
-            />
-          ))}
-          <Link
-            href={`/onboarding`}
-            className="flex items-center gap-2 text-sm text-brand-600 hover:text-brand-700 font-medium mt-4 transition-colors"
-          >
-            + Edit Family
-          </Link>
+          <div className="space-y-2 relative z-10">
+            {family?.members.map((member) => (
+              <div key={member.id} onClick={() => { setSelectedMemberId(member.id); setSidebarOpen(false); }}>
+                <FamilyMemberCard
+                  member={member}
+                  isSelected={selectedMemberId === member.id}
+                  onSelect={() => { setSelectedMemberId(member.id); setSidebarOpen(false); }}
+                />
+              </div>
+            ))}
+          </div>
         </aside>
 
         {/* Main content */}
-        <main className="flex-1 min-w-0 space-y-6">
+        <main className="flex-1 min-w-0 px-4 sm:px-6 py-5 overflow-y-auto">
           <MealPlanGrid
             mealPlan={mealPlan}
             isLoading={isGeneratingPlan}
             onGeneratePlan={handleGeneratePlan}
             weekStart={weekStart}
-            familyId={familyId}
+            familyId={family?.id || ""}
           />
         </main>
 
-        {/* Right panel — grocery + budget */}
-        <aside className="w-80 flex-shrink-0 space-y-4">
-          <div className="flex items-center justify-between">
+        {/* Grocery panel — hidden on mobile (accessible via chat), shown on lg+ */}
+        <aside className="hidden lg:block w-80 flex-shrink-0 px-4 py-5 overflow-y-auto border-l border-stone-100">
+          <div className="flex items-center justify-between mb-3">
             <h3 className="text-xs font-semibold text-stone-400 uppercase tracking-wider">
               Grocery List
             </h3>
@@ -353,13 +372,9 @@ function DashboardContent() {
               <button
                 onClick={handleGenerateGrocery}
                 disabled={isGeneratingGrocery}
-                className="flex items-center gap-1.5 text-xs font-medium text-brand-600 hover:text-brand-700 transition-colors"
+                className="flex items-center gap-1.5 text-xs font-medium text-green-700 hover:text-green-800 transition"
               >
-                {isGeneratingGrocery ? (
-                  <Loader2 className="w-3 h-3 animate-spin" />
-                ) : (
-                  <RefreshCw className="w-3 h-3" />
-                )}
+                {isGeneratingGrocery ? <Loader2 className="w-3 h-3 animate-spin" /> : <RefreshCw className="w-3 h-3" />}
                 Generate
               </button>
             )}
@@ -373,24 +388,12 @@ function DashboardContent() {
         </aside>
       </div>
 
-      {/* Floating Chat Assistant */}
+      {/* Floating Chat */}
       <ChatAssistant
-        familyId={familyId}
+        familyId={family?.id || ""}
         family={family}
         selectedMemberId={selectedMemberId}
       />
     </div>
-  );
-}
-
-export default function DashboardPage() {
-  return (
-    <Suspense fallback={
-      <div className="min-h-screen flex items-center justify-center">
-        <Loader2 className="w-8 h-8 text-brand-500 animate-spin" />
-      </div>
-    }>
-      <DashboardContent />
-    </Suspense>
   );
 }

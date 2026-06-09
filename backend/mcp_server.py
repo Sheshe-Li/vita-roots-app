@@ -31,6 +31,13 @@ load_dotenv()
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(name)s: %(message)s")
 logger = logging.getLogger(__name__)
 
+try:
+    from observability import init_observability
+    init_observability()
+    logger.info("Phoenix observability initialized for MCP server.")
+except Exception as _obs_err:
+    logger.warning(f"Observability not initialized (traces unavailable): {_obs_err}")
+
 app = FastAPI(
     title="Vita Roots MCP Signal Harvester",
     description="Atomic MCP tool endpoints for the signal harvesting pipeline",
@@ -76,6 +83,18 @@ class ScoreSignalRequest(BaseModel):
     source_name: str
     matched_member_count: int
     metadata: dict[str, Any] = {}
+
+
+class CompoundActionRequest(BaseModel):
+    family_id: str
+    signal_title: str
+    signal_summary: str
+    signal_type: str  # "research" | "market"
+    score: int
+    score_breakdown: list[str]
+    matched_members: list[dict[str, Any]]
+    signal_metadata: dict[str, Any] = {}
+    source_name: str = "PubMed"
 
 
 # ---------------------------------------------------------------------------
@@ -419,6 +438,56 @@ async def score_signal(req: ScoreSignalRequest) -> dict:
 
 
 # ---------------------------------------------------------------------------
+# TOOL 5: compound_action
+# COMPOUND layer — orchestrate full downstream action when a signal fires
+# One job: receive a fired signal, invoke WellnessAgent, persist results, create alert.
+# Call this only when score_signal returns recommendation="fire".
+# ---------------------------------------------------------------------------
+
+@app.post("/tools/compound_action")
+async def compound_action(req: CompoundActionRequest) -> dict:
+    """
+    COMPOUND layer — full downstream action when score_signal returns "fire".
+    Invokes WellnessAgent to regenerate meal plan, persists to Supabase,
+    creates signal_alert for HITL approval, and writes audit log.
+    All steps are captured in a single Phoenix parent span.
+    """
+    from compound_agent import CompoundAgent
+
+    logger.info(
+        f"[compound_action] Fired signal for family {req.family_id} "
+        f"| type={req.signal_type} | score={req.score}"
+    )
+
+    agent = CompoundAgent()
+    result = await agent.handle_fired_signal(
+        family_id=req.family_id,
+        signal_title=req.signal_title,
+        signal_summary=req.signal_summary,
+        signal_type=req.signal_type,
+        score=req.score,
+        score_breakdown=req.score_breakdown,
+        matched_members=req.matched_members,
+        signal_metadata=req.signal_metadata,
+        source_name=req.source_name,
+    )
+
+    return {
+        "family_id": result.family_id,
+        "signal_title": result.signal_title,
+        "signal_type": result.signal_type,
+        "score": result.score,
+        "recommendation": result.recommendation,
+        "action_taken": result.action_taken,
+        "new_plan_id": result.new_plan_id,
+        "alert_id": result.alert_id,
+        "trace_id": result.trace_id,
+        "completed_at": result.completed_at,
+        "error": result.error,
+    }
+
+
+# ---------------------------------------------------------------------------
 # Health check
 # ---------------------------------------------------------------------------
 
@@ -432,8 +501,9 @@ async def health():
             "fetch_market_prices",
             "match_family_profiles",
             "score_signal",
+            "compound_action",
         ],
-        "version": "1.0.0",
+        "version": "2.0.0",
     }
 
 

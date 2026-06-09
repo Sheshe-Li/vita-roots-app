@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import logging
 import os
+import uuid
 from typing import Any, Optional
 
 from dotenv import load_dotenv
@@ -87,6 +88,22 @@ async def get_family(family_id: str) -> Optional[dict]:
         return result.data[0] if result.data else None
     except Exception as e:
         logger.error(f"get_family error: {e}")
+        return None
+
+
+async def get_family_with_members(family_id: str) -> Optional[dict]:
+    client = get_client()
+    if not client:
+        return None
+    try:
+        result = client.table("families").select("*, family_members(*)").eq("id", family_id).execute()
+        if not result.data:
+            return None
+        row = result.data[0]
+        row["members"] = row.pop("family_members", [])
+        return row
+    except Exception as e:
+        logger.error(f"get_family_with_members error: {e}")
         return None
 
 
@@ -263,6 +280,30 @@ async def save_meal_plan(data: dict[str, Any]) -> Optional[dict]:
         return result.data[0] if result.data else None
     except Exception as e:
         logger.error(f"save_meal_plan error: {e}")
+        return None
+
+
+async def create_meal_plan(
+    family_id: str,
+    week_start: str,
+    days_json: list,
+    notes: str = None,
+) -> Optional[str]:
+    client = get_client()
+    if not client:
+        return None
+    try:
+        plan_id = str(uuid.uuid4())
+        result = client.table("meal_plans").insert({
+            "id": plan_id,
+            "family_id": family_id,
+            "week_start": week_start,
+            "days_json": days_json,
+            "notes": notes,
+        }).execute()
+        return result.data[0].get("id", plan_id) if result.data else plan_id
+    except Exception as e:
+        logger.error(f"create_meal_plan error: {e}")
         return None
 
 
@@ -538,22 +579,31 @@ async def get_pending_grocery_approvals(family_id: str) -> list[dict]:
 # ---------------------------------------------------------------------------
 
 
-async def create_signal(data: dict[str, Any]) -> Optional[dict]:
+async def create_signal(
+    signal_type: str,
+    title: str,
+    summary: str = None,
+    source_name: str = None,
+    score: int = 0,
+    status: str = "pending",
+    metadata: dict = None,
+) -> Optional[str]:
     client = get_client()
     if not client:
         return None
     try:
+        signal_id = str(uuid.uuid4())
         result = client.table("signals").insert({
-            "type": data["type"],
-            "title": data["title"],
-            "summary": data.get("summary"),
-            "source_url": data.get("source_url"),
-            "source_name": data.get("source_name"),
-            "raw_data": data.get("raw_data", {}),
-            "score": int(data.get("score", 0)),
-            "score_notes": data.get("score_notes"),
+            "id": signal_id,
+            "signal_type": signal_type,
+            "title": title,
+            "summary": summary,
+            "source_name": source_name,
+            "score": int(score),
+            "status": status,
+            "metadata": metadata or {},
         }).execute()
-        return result.data[0] if result.data else None
+        return result.data[0].get("id", signal_id) if result.data else signal_id
     except Exception as e:
         logger.error(f"create_signal error: {e}")
         return None
@@ -591,17 +641,30 @@ async def get_pending_signals() -> list[dict]:
 # ---------------------------------------------------------------------------
 
 
-async def create_signal_alert(signal_id: str, family_id: str, member_ids: list[str]) -> Optional[dict]:
+async def create_signal_alert(
+    family_id: str,
+    signal_id: str = None,
+    signal_type: str = None,
+    title: str = None,
+    summary: str = None,
+    score: int = 0,
+    matched_members: list = None,
+    new_plan_id: str = None,
+) -> Optional[str]:
     client = get_client()
     if not client:
         return None
     try:
+        alert_id = str(uuid.uuid4())
         result = client.table("signal_alerts").insert({
-            "signal_id": signal_id,
+            "id": alert_id,
             "family_id": family_id,
-            "member_ids": [str(m) for m in member_ids],
+            "signal_id": signal_id,
+            "matched_members": matched_members or [],
+            "new_plan_id": new_plan_id,
+            "status": "pending",
         }).execute()
-        return result.data[0] if result.data else None
+        return result.data[0].get("id", alert_id) if result.data else alert_id
     except Exception as e:
         logger.error(f"create_signal_alert error: {e}")
         return None

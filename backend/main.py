@@ -31,7 +31,7 @@ from models import HealthCheck
 from routes import chat, meal_plans, grocery, supplements, family
 
 from routes.approvals import router as approvals_router
-
+from routes.auth import router as auth_router
 from routes.support import router as support_router
 
 logging.basicConfig(
@@ -74,13 +74,16 @@ app = FastAPI(
 # ---------------------------------------------------------------------------
 # CORS
 # ---------------------------------------------------------------------------
-frontend_url = os.getenv("NEXT_PUBLIC_API_URL", "http://localhost:3000")
+frontend_url = os.getenv("FRONTEND_URL", "http://localhost:3000")
+_extra = os.getenv("EXTRA_CORS_ORIGINS", "")
+_extra_origins = [o.strip() for o in _extra.split(",") if o.strip()]
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
         "http://localhost:3000",
         "http://127.0.0.1:3000",
         frontend_url,
+        *_extra_origins,
     ],
     allow_credentials=True,
     allow_methods=["*"],
@@ -97,6 +100,7 @@ app.include_router(supplements.router, prefix="/api", tags=["Supplements"])
 app.include_router(family.router, prefix="/api", tags=["Family"])
 app.include_router(support_router, prefix="/api", tags=["Support"])
 app.include_router(approvals_router, prefix="/api")
+app.include_router(auth_router, prefix="/api", tags=["Auth"])
 
 
 # ---------------------------------------------------------------------------

@@ -82,7 +82,7 @@ async def create_ticket(body: CreateTicketRequest):
             family_context = {
                 "name": family["name"],
                 "client_number": family["client_number"],
-                "subscription": subscription["display_name"] if subscription else "No active subscription",
+                "subscription": subscription.get("subscription_plans", {}).get("display_name", "Unknown plan") if subscription else "No active subscription",
                 "member_count": len(members),
             }
 

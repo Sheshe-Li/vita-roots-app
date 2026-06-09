@@ -49,7 +49,7 @@ def init_observability() -> bool:
     # Build OTLP headers — include API key when using Phoenix Cloud
     otlp_headers: dict[str, str] = {}
     if phoenix_api_key:
-        otlp_headers["api_key"] = phoenix_api_key
+        otlp_headers["Authorization"] = f"Bearer {phoenix_api_key}"
         logger.info("Phoenix Cloud API key loaded — sending authenticated traces.")
     else:
         logger.info("No PHOENIX_API_KEY set — connecting to local Phoenix instance.")
