@@ -95,7 +95,7 @@ export default function LandingPage() {
             <ArrowRight className="w-5 h-5" />
           </Link>
           <Link
-            href="/demo"
+            href="/dashboard"
             className="inline-flex items-center gap-2 text-base font-medium px-8 py-4 rounded-full border transition-all"
             style={{ color: "#3B2010", borderColor: "rgba(201,169,110,0.4)", background: "transparent", fontFamily: "'Jost', sans-serif" }}
           >
