@@ -9,7 +9,8 @@ import json
 import logging
 from typing import AsyncGenerator
 
-from fastapi import APIRouter, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException, Request
+from deps import get_current_family
 from fastapi.responses import StreamingResponse
 from sse_starlette.sse import EventSourceResponse
 
@@ -31,22 +32,22 @@ def _family_from_record(record: dict) -> Family:
 
 
 @router.post("/chat")
-async def chat_endpoint(request: ChatRequest):
+async def chat_endpoint(request: ChatRequest, current_family: dict = Depends(get_current_family)):
     """
     Stream a wellness assistant response via Server-Sent Events.
     Each SSE event data field contains a JSON string: {"chunk": "...", "done": false}
     Final event: {"chunk": "", "done": true}
     """
+    family_id = str(current_family["id"])
     with _tracer.start_as_current_span("route.chat.post") as span:
         add_wellness_attributes(
             span,
-            family_id=request.family_id,
+            family_id=family_id,
             member_id=request.member_id,
             request_type="chat",
         )
 
-        # Load family from DB (or use a lightweight placeholder if DB is unavailable)
-        db_record = await get_family(request.family_id)
+        db_record = await get_family(family_id)
         if db_record is None:
             # If DB unavailable, return a minimal response rather than erroring
             logger.warning(f"Family {request.family_id} not found; using stub context.")

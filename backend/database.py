@@ -62,7 +62,7 @@ async def create_family(data: dict[str, Any]) -> Optional[dict]:
     if not client:
         return None
     try:
-        result = client.table("families").insert({
+        row = {
             "id": str(data["id"]),
             "name": data["name"],
             "email": data.get("email", ""),
@@ -72,7 +72,10 @@ async def create_family(data: dict[str, Any]) -> Optional[dict]:
             "plan_frequency": data.get("plan_frequency", "weekly"),
             "notify_email": data.get("notify_email", True),
             "notify_inapp": data.get("notify_inapp", True),
-        }).execute()
+        }
+        if data.get("auth_user_id"):
+            row["auth_user_id"] = str(data["auth_user_id"])
+        result = client.table("families").insert(row).execute()
         return result.data[0] if result.data else None
     except Exception as e:
         logger.error(f"create_family error: {e}")

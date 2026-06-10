@@ -12,7 +12,8 @@ import logging
 from datetime import date, datetime
 from uuid import uuid4
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
+from deps import get_current_family
 
 from agent import WellnessAgent
 from database import (
@@ -104,16 +105,13 @@ def _build_meal_plan_from_agent_data(
 
 
 @router.post("/meal-plans/generate", response_model=APIResponse)
-async def generate_meal_plan(request: MealPlanRequest):
+async def generate_meal_plan(request: MealPlanRequest, current_family: dict = Depends(get_current_family)):
     """Generate a 7-day meal plan for the family and persist it."""
+    family_id = str(current_family["id"])
     with _tracer.start_as_current_span("route.meal_plans.generate") as span:
-        add_wellness_attributes(
-            span,
-            family_id=request.family_id,
-            request_type="meal_plan",
-        )
+        add_wellness_attributes(span, family_id=family_id, request_type="meal_plan")
 
-        db_record = await get_family(request.family_id)
+        db_record = await get_family(family_id)
         if db_record is None:
             raise HTTPException(status_code=404, detail="Family not found.")
 
@@ -130,7 +128,7 @@ async def generate_meal_plan(request: MealPlanRequest):
             raise HTTPException(status_code=500, detail=f"Agent error: {exc}")
 
         meal_plan = _build_meal_plan_from_agent_data(
-            family_id=request.family_id,
+            family_id=family_id,
             week_start=request.week_start,
             agent_data=agent_data,
         )
@@ -143,7 +141,7 @@ async def generate_meal_plan(request: MealPlanRequest):
 
 
 @router.get("/meal-plans/{plan_id}", response_model=APIResponse)
-async def get_meal_plan_endpoint(plan_id: str):
+async def get_meal_plan_endpoint(plan_id: str, _: dict = Depends(get_current_family)):
     """Retrieve a previously saved meal plan."""
     with _tracer.start_as_current_span("route.meal_plans.get") as span:
         span.set_attribute("meal_plan.id", plan_id)
@@ -156,17 +154,14 @@ async def get_meal_plan_endpoint(plan_id: str):
 
 
 @router.post("/meals/{meal_id}/swap", response_model=APIResponse)
-async def swap_meal(meal_id: str, request: MealSwapRequest):
+async def swap_meal(meal_id: str, request: MealSwapRequest, current_family: dict = Depends(get_current_family)):
     """Get an AI-generated alternative for a specific meal."""
+    family_id = str(current_family["id"])
     with _tracer.start_as_current_span("route.meal_plans.swap") as span:
-        add_wellness_attributes(
-            span,
-            family_id=request.family_id,
-            request_type="meal_plan",
-        )
+        add_wellness_attributes(span, family_id=family_id, request_type="meal_plan")
         span.set_attribute("meal.id", meal_id)
 
-        db_record = await get_family(request.family_id)
+        db_record = await get_family(family_id)
         if db_record is None:
             raise HTTPException(status_code=404, detail="Family not found.")
 

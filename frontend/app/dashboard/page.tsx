@@ -125,6 +125,7 @@ export default function DashboardPage() {
   const supabase = createClient();
 
   const [family, setFamily] = useState<Family | null>(null);
+  const [token, setToken] = useState<string | null>(null);
   const [selectedMemberId, setSelectedMemberId] = useState<string | null>(null);
   const [mealPlan, setMealPlan] = useState<MealPlan | null>(null);
   const [groceryList, setGroceryList] = useState<GroceryListData | null>(null);
@@ -145,6 +146,7 @@ export default function DashboardPage() {
         router.push("/login");
         return;
       }
+      setToken(session.access_token);
 
       try {
         const res = await fetch(`${API_URL}/api/families/me`, {
@@ -175,12 +177,11 @@ export default function DashboardPage() {
     setIsGeneratingPlan(true);
     setError("");
     try {
-      const { data: { session } } = await supabase.auth.getSession();
       const res = await fetch(`${API_URL}/api/meal-plans/generate`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          ...(session ? { Authorization: `Bearer ${session.access_token}` } : {}),
+          Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({ family_id: family.id, week_start: weekStart }),
       });
@@ -202,7 +203,10 @@ export default function DashboardPage() {
     try {
       const res = await fetch(`${API_URL}/api/grocery-lists/generate`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
         body: JSON.stringify({
           family_id: family.id,
           meal_plan_id: mealPlan.id,
@@ -227,7 +231,10 @@ export default function DashboardPage() {
     );
     await fetch(`${API_URL}/api/grocery-items/${itemId}/check`, {
       method: "PATCH",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
       body: JSON.stringify({ checked }),
     }).catch(console.error);
   };

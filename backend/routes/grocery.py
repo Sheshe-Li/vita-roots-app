@@ -12,7 +12,8 @@ import logging
 from datetime import datetime
 from uuid import uuid4
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
+from deps import get_current_family
 
 from agent import WellnessAgent
 from database import (
@@ -78,17 +79,13 @@ def _build_grocery_list(
 
 
 @router.post("/grocery-lists/generate", response_model=APIResponse)
-async def generate_grocery_list(request: GroceryListRequest):
+async def generate_grocery_list(request: GroceryListRequest, current_family: dict = Depends(get_current_family)):
     """Generate a grocery list from a meal plan."""
+    family_id = str(current_family["id"])
     with _tracer.start_as_current_span("route.grocery.generate") as span:
-        add_wellness_attributes(
-            span,
-            family_id=request.family_id,
-            request_type="grocery",
-        )
+        add_wellness_attributes(span, family_id=family_id, request_type="grocery")
 
-        # Load family
-        fam_record = await get_family(request.family_id)
+        fam_record = await get_family(family_id)
         if fam_record is None:
             raise HTTPException(status_code=404, detail="Family not found.")
         family = _family_from_record(dict(fam_record))
@@ -111,7 +108,7 @@ async def generate_grocery_list(request: GroceryListRequest):
             raise HTTPException(status_code=500, detail=f"Agent error: {exc}")
 
         grocery_list = _build_grocery_list(
-            family_id=request.family_id,
+            family_id=family_id,
             meal_plan_id=request.meal_plan_id,
             budget=request.budget,
             agent_data=agent_data,
@@ -124,7 +121,7 @@ async def generate_grocery_list(request: GroceryListRequest):
 
 
 @router.get("/grocery-lists/{plan_id}", response_model=APIResponse)
-async def get_grocery_list_endpoint(plan_id: str):
+async def get_grocery_list_endpoint(plan_id: str, _: dict = Depends(get_current_family)):
     """Get the grocery list associated with a meal plan."""
     with _tracer.start_as_current_span("route.grocery.get") as span:
         span.set_attribute("meal_plan.id", plan_id)
@@ -137,7 +134,7 @@ async def get_grocery_list_endpoint(plan_id: str):
 
 
 @router.patch("/grocery-items/{item_id}/check", response_model=APIResponse)
-async def toggle_grocery_item(item_id: str, body: GroceryItemCheckRequest):
+async def toggle_grocery_item(item_id: str, body: GroceryItemCheckRequest, _: dict = Depends(get_current_family)):
     """Toggle the checked state of a grocery list item."""
     with _tracer.start_as_current_span("route.grocery.check_item") as span:
         span.set_attribute("grocery_item.id", item_id)

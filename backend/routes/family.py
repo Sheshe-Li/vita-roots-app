@@ -19,9 +19,10 @@ import json
 import logging
 from uuid import uuid4
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 
 import database as db
+from deps import get_current_family, get_current_user
 from models import (
     Family,
     FamilyCreate,
@@ -58,8 +59,8 @@ def _member_to_dict(member: FamilyMember) -> dict:
 
 
 @router.post("/families", response_model=APIResponse, status_code=201)
-async def create_family(body: FamilyCreate):
-    """Create a new family with its members."""
+async def create_family(body: FamilyCreate, current_user: dict = Depends(get_current_user)):
+    """Create a new family with its members. Requires auth — links family to the signed-in user."""
     with _tracer.start_as_current_span("route.family.create"):
         # Build member models
         members: list[FamilyMember] = []
@@ -76,6 +77,7 @@ async def create_family(body: FamilyCreate):
         )
 
         family_dict = _family_to_dict(family)
+        family_dict["auth_user_id"] = current_user["id"]
         record = await db.create_family(family_dict)
 
         # Persist each member separately for individual lookups
@@ -90,27 +92,24 @@ async def create_family(body: FamilyCreate):
 
 
 @router.get("/families", response_model=APIResponse)
-async def list_families():
-    """Return all families."""
-    with _tracer.start_as_current_span("route.family.list"):
-        records = await db.list_families()
-        data = [dict(r).get("data", dict(r)) for r in records]
-        return APIResponse(data=data)
+async def list_families(current_family: dict = Depends(get_current_family)):
+    """Return the authenticated user's family."""
+    return APIResponse(data=[current_family])
 
 
 @router.get("/families/{family_id}", response_model=APIResponse)
-async def get_family(family_id: str):
-    """Return a single family by ID."""
-    with _tracer.start_as_current_span("route.family.get"):
-        record = await db.get_family(family_id)
-        if record is None:
-            raise HTTPException(status_code=404, detail="Family not found.")
-        return APIResponse(data=dict(record).get("data", dict(record)))
+async def get_family(family_id: str, current_family: dict = Depends(get_current_family)):
+    """Return a single family by ID — must be the authenticated user's family."""
+    if str(current_family["id"]) != family_id:
+        raise HTTPException(status_code=403, detail="Access denied.")
+    return APIResponse(data=current_family)
 
 
 @router.put("/families/{family_id}", response_model=APIResponse)
-async def update_family(family_id: str, body: FamilyUpdate):
+async def update_family(family_id: str, body: FamilyUpdate, current_family: dict = Depends(get_current_family)):
     """Update top-level family fields."""
+    if str(current_family["id"]) != family_id:
+        raise HTTPException(status_code=403, detail="Access denied.")
     with _tracer.start_as_current_span("route.family.update"):
         record = await db.get_family(family_id)
         if record is None:
@@ -118,28 +117,22 @@ async def update_family(family_id: str, body: FamilyUpdate):
 
         current: dict = dict(record).get("data", dict(record))
 
-        # Apply updates
         update_data = body.model_dump(exclude_none=True)
-        # Convert enum values
         for k, v in update_data.items():
             if hasattr(v, "value"):
                 update_data[k] = v.value
         current.update(update_data)
 
-        updated = await db.update_family(family_id, current)
-        return APIResponse(
-            data=current,
-            message="Family updated.",
-        )
+        await db.update_family(family_id, current)
+        return APIResponse(data=current, message="Family updated.")
 
 
 @router.delete("/families/{family_id}", response_model=APIResponse)
-async def delete_family(family_id: str):
-    """Delete a family and all associated data (cascade)."""
+async def delete_family(family_id: str, current_family: dict = Depends(get_current_family)):
+    """Delete the authenticated user's family."""
+    if str(current_family["id"]) != family_id:
+        raise HTTPException(status_code=403, detail="Access denied.")
     with _tracer.start_as_current_span("route.family.delete"):
-        record = await db.get_family(family_id)
-        if record is None:
-            raise HTTPException(status_code=404, detail="Family not found.")
         await db.delete_family(family_id)
         return APIResponse(message=f"Family {family_id} deleted.")
 
@@ -150,10 +143,11 @@ async def delete_family(family_id: str):
 
 
 @router.post("/families/{family_id}/members", response_model=APIResponse, status_code=201)
-async def add_member(family_id: str, body: FamilyMemberCreate):
-    """Add a new member to a family."""
+async def add_member(family_id: str, body: FamilyMemberCreate, current_family: dict = Depends(get_current_family)):
+    """Add a new member to the authenticated user's family."""
+    if str(current_family["id"]) != family_id:
+        raise HTTPException(status_code=403, detail="Access denied.")
     with _tracer.start_as_current_span("route.family.add_member"):
-        # Ensure family exists
         fam_record = await db.get_family(family_id)
         if fam_record is None:
             raise HTTPException(status_code=404, detail="Family not found.")
@@ -173,8 +167,10 @@ async def add_member(family_id: str, body: FamilyMemberCreate):
 
 
 @router.get("/families/{family_id}/members", response_model=APIResponse)
-async def list_members(family_id: str):
-    """List all members of a family."""
+async def list_members(family_id: str, current_family: dict = Depends(get_current_family)):
+    """List all members of the authenticated user's family."""
+    if str(current_family["id"]) != family_id:
+        raise HTTPException(status_code=403, detail="Access denied.")
     with _tracer.start_as_current_span("route.family.list_members"):
         records = await db.get_family_members(family_id)
         data = [dict(r).get("data", dict(r)) for r in records]
@@ -182,8 +178,10 @@ async def list_members(family_id: str):
 
 
 @router.get("/families/{family_id}/members/{member_id}", response_model=APIResponse)
-async def get_member(family_id: str, member_id: str):
-    """Get a single family member."""
+async def get_member(family_id: str, member_id: str, current_family: dict = Depends(get_current_family)):
+    """Get a single family member — must belong to the authenticated user's family."""
+    if str(current_family["id"]) != family_id:
+        raise HTTPException(status_code=403, detail="Access denied.")
     with _tracer.start_as_current_span("route.family.get_member"):
         record = await db.get_member(member_id)
         if record is None:
@@ -192,8 +190,10 @@ async def get_member(family_id: str, member_id: str):
 
 
 @router.put("/families/{family_id}/members/{member_id}", response_model=APIResponse)
-async def update_member(family_id: str, member_id: str, body: FamilyMemberUpdate):
+async def update_member(family_id: str, member_id: str, body: FamilyMemberUpdate, current_family: dict = Depends(get_current_family)):
     """Update a family member's profile."""
+    if str(current_family["id"]) != family_id:
+        raise HTTPException(status_code=403, detail="Access denied.")
     with _tracer.start_as_current_span("route.family.update_member"):
         record = await db.get_member(member_id)
         if record is None:
@@ -230,8 +230,10 @@ async def update_member(family_id: str, member_id: str, body: FamilyMemberUpdate
 
 
 @router.delete("/families/{family_id}/members/{member_id}", response_model=APIResponse)
-async def delete_member(family_id: str, member_id: str):
-    """Remove a member from a family."""
+async def delete_member(family_id: str, member_id: str, current_family: dict = Depends(get_current_family)):
+    """Remove a member from the authenticated user's family."""
+    if str(current_family["id"]) != family_id:
+        raise HTTPException(status_code=403, detail="Access denied.")
     with _tracer.start_as_current_span("route.family.delete_member"):
         record = await db.get_member(member_id)
         if record is None:

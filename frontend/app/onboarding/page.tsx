@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { createClient } from "@/lib/supabase";
 import { ChevronRight, ChevronLeft, Check, Plus, X } from "lucide-react";
 
 function VitaRootsLogo({ size = 24 }: { size?: number }) {
@@ -518,6 +519,7 @@ function DisclaimerStep({
 
 export default function OnboardingPage() {
   const router = useRouter();
+  const supabase = createClient();
   const [step, setStep] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
@@ -570,6 +572,12 @@ export default function OnboardingPage() {
     setIsLoading(true);
     setError("");
     try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        router.push("/login");
+        return;
+      }
+
       const payload = {
         name: form.name,
         budget_weekly: parseFloat(form.budget_weekly),
@@ -583,7 +591,10 @@ export default function OnboardingPage() {
 
       const res = await fetch(`${API_URL}/api/families`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${session.access_token}`,
+        },
         body: JSON.stringify(payload),
       });
 

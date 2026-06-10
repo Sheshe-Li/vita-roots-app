@@ -11,7 +11,8 @@ import logging
 from datetime import datetime
 from uuid import uuid4
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
+from deps import get_current_family
 
 from agent import WellnessAgent
 from database import (
@@ -76,18 +77,13 @@ def _build_supplement_guide(
 
 
 @router.post("/supplements/generate/{member_id}", response_model=APIResponse)
-async def generate_supplement_guide(member_id: str, request: SupplementRequest):
+async def generate_supplement_guide(member_id: str, request: SupplementRequest, current_family: dict = Depends(get_current_family)):
     """Generate a personalized supplement guide for a family member."""
+    family_id = str(current_family["id"])
     with _tracer.start_as_current_span("route.supplements.generate") as span:
-        add_wellness_attributes(
-            span,
-            family_id=request.family_id,
-            member_id=member_id,
-            request_type="supplement",
-        )
+        add_wellness_attributes(span, family_id=family_id, member_id=member_id, request_type="supplement")
 
-        # Load family
-        fam_record = await get_family(request.family_id)
+        fam_record = await get_family(family_id)
         if fam_record is None:
             raise HTTPException(status_code=404, detail="Family not found.")
         family = _family_from_record(dict(fam_record))
@@ -114,7 +110,7 @@ async def generate_supplement_guide(member_id: str, request: SupplementRequest):
             raise HTTPException(status_code=500, detail=f"Agent error: {exc}")
 
         guide = _build_supplement_guide(
-            family_id=request.family_id,
+            family_id=family_id,
             member=member,
             agent_data=agent_data,
         )
@@ -126,7 +122,7 @@ async def generate_supplement_guide(member_id: str, request: SupplementRequest):
 
 
 @router.get("/supplements/{member_id}", response_model=APIResponse)
-async def get_supplement_guide_endpoint(member_id: str):
+async def get_supplement_guide_endpoint(member_id: str, _: dict = Depends(get_current_family)):
     """Get the most recent supplement guide for a family member."""
     with _tracer.start_as_current_span("route.supplements.get") as span:
         span.set_attribute("family.member_id", member_id)
